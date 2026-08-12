@@ -1,4 +1,4 @@
 name = "ai-landscape"
 compatibility_date = "2025-08-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat", "nodejs_compat_v2"]
 pages_build_output_dir = ".open-next"
