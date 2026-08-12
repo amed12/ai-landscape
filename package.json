@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx @opennextjs/cloudflare build && cp .open-next/worker.js .open-next/_worker.js",
-    "build:cf": "npx @opennextjs/cloudflare build && cp .open-next/worker.js .open-next/_worker.js",
+    "build": "next build",
+    "build:cf": "npx @opennextjs/cloudflare build && node scripts/clean-worker.js",
     "start": "next start",
     "lint": "eslint"
   },
