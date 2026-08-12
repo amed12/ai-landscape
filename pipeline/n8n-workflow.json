@@ -1,0 +1,101 @@
+{
+  "name": "AI Landscape — Daily Pipeline",
+  "nodes": [
+    {
+      "id": "sch-001",
+      "name": "Daily 06:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "code-001",
+      "name": "Fetch & Normalize Sources",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ─── helpers ───────────────────────────────────────────────\nconst slugify = s =>\n  s.toLowerCase()\n   .replace(/[^a-z0-9\\s-]/g, '')\n   .trim()\n   .replace(/\\s+/g, '-')\n   .slice(0, 80);\n\nfunction guessCategory(text) {\n  const t = text.toLowerCase();\n  if (/agent|mcp|orchestrat|workflow|harness/.test(t)) return 7;\n  if (/security|sast|vuln|pentest|guardrail/.test(t)) return 8;\n  if (/test|eval|benchmark/.test(t))                  return 6;\n  if (/frontend|ui\\b|react|vue|tailwind|component/.test(t)) return 4;\n  if (/api|framework|sdk|inference|serving/.test(t))  return 3;\n  if (/code|copilot|editor|ide|autocomplete/.test(t)) return 2;\n  return 5; // backend & infra\n}\n\n// ─── fetch sources in parallel ──────────────────────────────\nconst GITHUB_TOKEN = ($env['GITHUB_TOKEN'] ?? '').trim();\nconst ghHeaders = {\n  Accept: 'application/vnd.github.v3+json',\n  'X-GitHub-Api-Version': '2022-11-28',\n  ...(GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {}),\n};\n\nconst [ghRes, hfRes] = await Promise.allSettled([\n  fetch(\n    'https://api.github.com/search/repositories?q=topic:ai+topic:llm+stars:>200+pushed:>2026-01-01&sort=stars&order=desc&per_page=20',\n    { headers: ghHeaders }\n  ).then(r => r.json()),\n\n  fetch(\n    'https://huggingface.co/api/models?sort=trending&limit=20&filter=text-generation'\n  ).then(r => r.json()),\n]);\n\n// ─── normalize ──────────────────────────────────────────────\nconst tools = [];\nconst seen  = new Set();\n\n// GitHub repos → tools\nif (ghRes.status === 'fulfilled' && Array.isArray(ghRes.value?.items)) {\n  for (const repo of ghRes.value.items) {\n    const slug = slugify(repo.name);\n    if (!slug || seen.has(slug)) continue;\n    seen.add(slug);\n    const desc = (repo.description || repo.name).slice(0, 500);\n    tools.push({\n      name:          repo.name,\n      slug,\n      description:   desc,\n      website_url:   repo.html_url,\n      category_id:   guessCategory([repo.full_name, desc, ...(repo.topics ?? [])].join(' ')),\n      is_open_source: true,\n      has_api:        false,\n      has_free_tier:  true,\n      pricing_model: 'open-source',\n      stars_github:  repo.stargazers_count,\n      is_new_today:  true,\n    });\n  }\n}\n\n// HuggingFace models → tools\nif (hfRes.status === 'fulfilled' && Array.isArray(hfRes.value)) {\n  for (const model of hfRes.value) {\n    const rawId = (model.modelId || model.id || '').trim();\n    const slug  = slugify(rawId.replace(/\\//g, '-'));\n    if (!slug || seen.has(slug)) continue;\n    seen.add(slug);\n    tools.push({\n      name:          rawId,\n      slug,\n      description:   `Trending open model on HuggingFace. Downloads: ${(model.downloads ?? 0).toLocaleString()}, Likes: ${model.likes ?? 0}.`,\n      website_url:   `https://huggingface.co/${rawId}`,\n      category_id:   3,\n      is_open_source: true,\n      has_api:        true,\n      has_free_tier:  true,\n      pricing_model: 'open-source',\n      stars_github:  null,\n      is_new_today:  true,\n    });\n  }\n}\n\nreturn [{ json: { tools, topics: [] } }];"
+      }
+    },
+    {
+      "id": "http-001",
+      "name": "POST to Pipeline Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "='https://' + $env['APP_URL'] + '/api/pipeline/run'",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "='Bearer ' + $env['PIPELINE_SECRET']"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ $json }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "notify-001",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 300],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const result = $input.first().json;\nconsole.log('[AI Landscape Pipeline]', JSON.stringify(result));\nreturn [{ json: { success: true, ...result, ran_at: new Date().toISOString() } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Daily 06:00 UTC": {
+      "main": [
+        [{ "node": "Fetch & Normalize Sources", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch & Normalize Sources": {
+      "main": [
+        [{ "node": "POST to Pipeline Endpoint", "type": "main", "index": 0 }]
+      ]
+    },
+    "POST to Pipeline Endpoint": {
+      "main": [
+        [{ "node": "Log Result", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [{ "name": "ai-landscape" }]
+}
