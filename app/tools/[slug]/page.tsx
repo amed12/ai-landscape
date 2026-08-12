@@ -1,14 +1,9 @@
-export const runtime = "edge";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { mockTools } from "@/lib/mock-data";
 import { getTools, getToolBySlug } from "@/lib/supabase/queries";
-
-export async function generateStaticParams() {
-  const tools = await getTools();
-  return tools.map((tool) => ({ slug: tool.slug }));
-}
 
 const roleRelevance = [
   { role: "Developer", score: 92, color: "bg-indigo-500" },
