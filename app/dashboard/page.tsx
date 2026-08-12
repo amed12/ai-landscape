@@ -1,6 +1,3 @@
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 import { getTools, getTopics } from "@/lib/supabase/queries";
 import DashboardClient from "./DashboardClient";
 

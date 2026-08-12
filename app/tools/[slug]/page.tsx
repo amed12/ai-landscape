@@ -1,6 +1,3 @@
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTools, getToolBySlug } from "@/lib/supabase/queries";
