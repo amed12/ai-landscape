@@ -1,5 +1,4 @@
 import type { ToolWithRelevance, Topic } from "@/lib/types";
-import { mockTools, mockTopics } from "@/lib/mock-data";
 import { createClient } from "./client";
 
 function hasSupabaseEnv() {
@@ -11,7 +10,7 @@ function hasSupabaseEnv() {
 }
 
 export async function getTools(): Promise<ToolWithRelevance[]> {
-  if (!hasSupabaseEnv()) return mockTools;
+  if (!hasSupabaseEnv()) return [];
   try {
     const supabase = createClient();
     const { data, error } = await supabase
@@ -19,8 +18,8 @@ export async function getTools(): Promise<ToolWithRelevance[]> {
       .select(`*, tool_role_relevance(score), categories(name)`)
       .order("added_at", { ascending: false });
     if (error || !data) {
-      console.warn("Supabase query failed, falling back to mock data:", error);
-      return mockTools;
+      console.warn("Supabase query failed or returned no data:", error);
+      return [];
     }
     return data.map((t) => ({
       ...t,
@@ -29,12 +28,12 @@ export async function getTools(): Promise<ToolWithRelevance[]> {
     }));
   } catch (err) {
     console.error("Failed to fetch tools:", err);
-    return mockTools;
+    return [];
   }
 }
 
 export async function getToolBySlug(slug: string): Promise<ToolWithRelevance | null> {
-  if (!hasSupabaseEnv()) return mockTools.find((t) => t.slug === slug) ?? null;
+  if (!hasSupabaseEnv()) return null;
   try {
     const supabase = createClient();
     const { data, error } = await supabase
@@ -43,8 +42,8 @@ export async function getToolBySlug(slug: string): Promise<ToolWithRelevance | n
       .eq("slug", slug)
       .single();
     if (error || !data) {
-      console.warn("Supabase query failed, falling back to mock data:", error);
-      return mockTools.find((t) => t.slug === slug) ?? null;
+      console.warn("Supabase query failed or returned no data:", error);
+      return null;
     }
     return {
       ...data,
@@ -53,12 +52,12 @@ export async function getToolBySlug(slug: string): Promise<ToolWithRelevance | n
     };
   } catch (err) {
     console.error("Failed to fetch tool:", err);
-    return mockTools.find((t) => t.slug === slug) ?? null;
+    return null;
   }
 }
 
 export async function getTopics(): Promise<Topic[]> {
-  if (!hasSupabaseEnv()) return mockTopics;
+  if (!hasSupabaseEnv()) return [];
   try {
     const supabase = createClient();
     const { data, error } = await supabase
@@ -66,12 +65,12 @@ export async function getTopics(): Promise<Topic[]> {
       .select("*")
       .order("created_at", { ascending: false });
     if (error || !data) {
-      console.warn("Supabase query failed, falling back to mock data:", error);
-      return mockTopics;
+      console.warn("Supabase query failed or returned no data:", error);
+      return [];
     }
     return data;
   } catch (err) {
     console.error("Failed to fetch topics:", err);
-    return mockTopics;
+    return [];
   }
 }
