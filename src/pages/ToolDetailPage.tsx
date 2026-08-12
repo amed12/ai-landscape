@@ -1,6 +1,7 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { getTools, getToolBySlug } from "@/lib/supabase/queries";
+import type { ToolWithRelevance } from "@/lib/types";
 
 const roleRelevance = [
   { role: "Developer", score: 92, color: "bg-indigo-500" },
@@ -18,17 +19,47 @@ const keyFeatures = [
   "IDE extensions for VSCode, JetBrains, Vim",
 ];
 
-export default async function ToolDetailPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-  const [tool, allTools] = await Promise.all([
-    getToolBySlug(slug),
-    getTools(),
-  ]);
-  if (!tool) notFound();
+export default function ToolDetailPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  
+  const [tool, setTool] = useState<ToolWithRelevance | null>(null);
+  const [allTools, setAllTools] = useState<ToolWithRelevance[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!slug) return;
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [toolData, allToolsData] = await Promise.all([
+          getToolBySlug(slug),
+          getTools(),
+        ]);
+        if (!toolData) {
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+        setTool(toolData);
+        setAllTools(allToolsData);
+      } catch (err) {
+        console.error("Failed to load tool details:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [slug, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!tool) return null;
 
   const similar = allTools
     .filter((t) => t.id !== tool.id && t.category_name === tool.category_name)
@@ -38,11 +69,11 @@ export default async function ToolDetailPage({
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Navbar */}
       <nav className="flex items-center justify-between px-8 py-4 bg-white border-b border-gray-100">
-        <Link href="/" className="text-xl font-bold text-gray-900">
+        <Link to="/" className="text-xl font-bold text-gray-900">
           ⚡ AI Landscape
         </Link>
         <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
+          <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
             Explore
           </Link>
           <a href="#" className="text-sm text-gray-600 hover:text-gray-900">
@@ -62,7 +93,7 @@ export default async function ToolDetailPage({
 
       {/* Breadcrumb */}
       <div className="px-8 py-3 text-sm text-gray-500 flex items-center gap-2 bg-white border-b border-gray-100">
-        <Link href="/dashboard" className="hover:text-indigo-600">
+        <Link to="/dashboard" className="hover:text-indigo-600">
           ← Back
         </Link>
         <span>/</span>
@@ -156,7 +187,7 @@ export default async function ToolDetailPage({
                   {similar.map((t) => (
                     <Link
                       key={t.id}
-                      href={`/tools/${t.slug}`}
+                      to={`/tools/${t.slug}`}
                       className="flex-1 bg-white rounded-xl border border-gray-200 p-4 hover:border-indigo-300 transition-colors"
                     >
                       <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-600 mb-2">

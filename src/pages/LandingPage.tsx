@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 const roles = [
   { label: "Developer / Engineer", icon: "💻", active: true },
@@ -16,7 +16,7 @@ export default function LandingPage() {
       <nav className="flex items-center justify-between px-8 py-4 border-b border-gray-100">
         <span className="text-xl font-bold text-gray-900">⚡ AI Landscape</span>
         <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
+          <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
             Explore
           </Link>
           <a href="#roles" className="text-sm text-gray-600 hover:text-gray-900">
@@ -29,7 +29,7 @@ export default function LandingPage() {
             About
           </a>
           <Link
-            href="/dashboard"
+            to="/dashboard"
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             Get Started
@@ -51,13 +51,13 @@ export default function LandingPage() {
           actually mean something.
         </p>
         <Link
-          href="/dashboard"
+          to="/dashboard"
           className="inline-block rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 mb-4"
         >
           Explore for Developers →
         </Link>
         <div>
-          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-300">
+          <Link to="/dashboard" className="text-sm text-gray-500 hover:text-gray-300">
             or browse all tools
           </Link>
         </div>
@@ -74,7 +74,7 @@ export default function LandingPage() {
             <div key={role.label} className="relative">
               {role.active ? (
                 <Link
-                  href="/dashboard"
+                  to="/dashboard"
                   className="flex flex-col items-center gap-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 p-6 text-center hover:bg-indigo-100 transition-colors"
                 >
                   <span className="text-3xl">{role.icon}</span>
