@@ -1,5 +1,5 @@
-import type { ToolWithRelevance, Topic } from "@/lib/types";
-import { createClient } from "./client";
+import type { ToolWithRelevance, Topic, TopicProgress } from "@/lib/types";
+import { createClient, getClient } from "./client";
 
 function hasSupabaseEnv() {
   const url = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -73,4 +73,34 @@ export async function getTopics(): Promise<Topic[]> {
     console.error("Failed to fetch topics:", err);
     return [];
   }
+}
+
+export async function getTopicProgress(userId: string): Promise<TopicProgress[]> {
+  if (!hasSupabaseEnv()) return [];
+  try {
+    const supabase = getClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("user_topic_progress")
+      .select("*")
+      .eq("user_id", userId);
+    if (error || !data) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+export async function upsertTopicProgress(
+  userId: string,
+  topicId: number,
+  status: TopicProgress["status"]
+): Promise<void> {
+  if (!hasSupabaseEnv()) return;
+  const supabase = getClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from("user_topic_progress").upsert(
+    { user_id: userId, topic_id: topicId, status, updated_at: new Date().toISOString() },
+    { onConflict: "user_id,topic_id" }
+  );
 }
