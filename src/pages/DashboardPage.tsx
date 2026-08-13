@@ -4,15 +4,15 @@ import { getTools, getTopics } from "@/lib/supabase/queries";
 import type { ToolWithRelevance, Topic } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const categories = [
-  { label: "All Tools", slug: "all", count: 10 },
-  { label: "Code Assistants", slug: "code-assistants", count: 3 },
-  { label: "LLM APIs & Frameworks", slug: "llm-apis-frameworks", count: 2 },
-  { label: "Frontend AI", slug: "frontend-ai", count: 1 },
-  { label: "Backend & Infra AI", slug: "backend-infra-ai", count: 1 },
-  { label: "Testing AI", slug: "testing-ai", count: 1 },
-  { label: "Agent & MCP Frameworks", slug: "agent-mcp-frameworks", count: 1 },
-  { label: "Security AI", slug: "security-ai", count: 1 },
+const categoryDefs = [
+  { label: "All Tools", slug: "all" },
+  { label: "Code Assistants", slug: "code-assistants" },
+  { label: "LLM APIs & Frameworks", slug: "llm-apis-frameworks" },
+  { label: "Frontend AI", slug: "frontend-ai" },
+  { label: "Backend & Infra AI", slug: "backend-infra-ai" },
+  { label: "Testing AI", slug: "testing-ai" },
+  { label: "Agent & MCP Frameworks", slug: "agent-mcp-frameworks" },
+  { label: "Security AI", slug: "security-ai" },
 ];
 
 const filters = ["All", "New Today", "Free Tier", "Has API", "Open Source"];
@@ -51,6 +51,16 @@ export default function DashboardPage() {
     }
     loadData();
   }, []);
+
+  const categories = categoryDefs.map((cat) => ({
+    ...cat,
+    count:
+      cat.slug === "all"
+        ? tools.length
+        : tools.filter(
+            (t) => t.category_name === categorySlugMap[cat.slug]
+          ).length,
+  }));
 
   const filtered = tools.filter((tool) => {
     const catMatch =
