@@ -48,14 +48,6 @@ export interface Topic {
   created_at: string;
 }
 
-export interface TopicProgress {
-  id: number;
-  user_id: string;
-  topic_id: number;
-  status: "not_started" | "in_progress" | "completed";
-  updated_at: string;
-}
-
 export interface TopicResource {
   id: number;
   topic_id: number;

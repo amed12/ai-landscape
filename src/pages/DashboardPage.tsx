@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getTools, getTopics, getTopicProgress, upsertTopicProgress } from "@/lib/supabase/queries";
-import type { ToolWithRelevance, Topic, TopicProgress } from "@/lib/types";
+import { getTools, getTopics } from "@/lib/supabase/queries";
+import type { ToolWithRelevance, Topic } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth/AuthContext";
 
 const categoryDefs = [
   { label: "All Tools", slug: "all" },
@@ -28,25 +27,9 @@ const categorySlugMap: Record<string, string> = {
   "security-ai": "Security AI",
 };
 
-const STATUS_CYCLE: TopicProgress["status"][] = ["not_started", "in_progress", "completed"];
-
-const STATUS_LABEL: Record<TopicProgress["status"], string> = {
-  not_started: "Not Started",
-  in_progress: "In Progress",
-  completed: "Completed ✓",
-};
-
-const STATUS_STYLE: Record<TopicProgress["status"], string> = {
-  not_started: "border-gray-300 text-gray-400 hover:border-indigo-400 hover:text-indigo-500",
-  in_progress: "border-yellow-400 text-yellow-600 bg-yellow-50",
-  completed: "border-green-500 text-green-600 bg-green-50",
-};
-
 export default function DashboardPage() {
-  const { user, signOut } = useAuth();
   const [tools, setTools] = useState<ToolWithRelevance[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [progress, setProgress] = useState<Record<number, TopicProgress["status"]>>({});
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeFilter, setActiveFilter] = useState("All");
@@ -60,13 +43,6 @@ export default function DashboardPage() {
         ]);
         setTools(toolsData);
         setTopics(topicsData);
-
-        if (user) {
-          const progressData = await getTopicProgress(user.id);
-          const map: Record<number, TopicProgress["status"]> = {};
-          for (const p of progressData) map[p.topic_id] = p.status;
-          setProgress(map);
-        }
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
       } finally {
@@ -74,15 +50,7 @@ export default function DashboardPage() {
       }
     }
     loadData();
-  }, [user]);
-
-  async function cycleStatus(topicId: number) {
-    if (!user) return;
-    const current = progress[topicId] ?? "not_started";
-    const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(current) + 1) % STATUS_CYCLE.length];
-    setProgress((prev) => ({ ...prev, [topicId]: next }));
-    await upsertTopicProgress(user.id, topicId, next);
-  }
+  }, []);
 
   const categories = categoryDefs.map((cat) => ({
     ...cat,
@@ -129,24 +97,9 @@ export default function DashboardPage() {
           <a href="#" className="text-sm text-gray-600 hover:text-gray-900">
             About
           </a>
-          {user ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-600">{user.email}</span>
-              <button
-                onClick={signOut}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-              >
-                Sign Out
-              </button>
-            </div>
-          ) : (
-            <Link
-              to="/login"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              Sign In
-            </Link>
-          )}
+          <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+            Sign In
+          </button>
         </div>
       </nav>
 
@@ -265,85 +218,46 @@ export default function DashboardPage() {
               {/* Topics section */}
               {topics.length > 0 && (
                 <div className="mt-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-lg font-semibold text-gray-900">Topics to Learn</h2>
-                    {user && (
-                      <span className="text-sm text-gray-500">
-                        {Object.values(progress).filter((s) => s === "completed").length} / {topics.length} completed
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Overall progress bar */}
-                  {user && topics.length > 0 && (
-                    <div className="mb-5">
-                      <div className="h-2 rounded-full bg-gray-100">
-                        <div
-                          className="h-2 rounded-full bg-green-500 transition-all duration-500"
-                          style={{
-                            width: `${(Object.values(progress).filter((s) => s === "completed").length / topics.length) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                    Topics to Learn
+                  </h2>
                   <div className="flex flex-col gap-3">
-                    {topics.map((topic) => {
-                      const status = progress[topic.id] ?? "not_started";
-                      return (
-                        <div
-                          key={topic.id}
-                          className="bg-white rounded-xl border border-gray-200 p-5"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <span
-                                className={cn(
-                                  "inline-block rounded-full text-xs font-semibold px-2 py-0.5 mb-2",
-                                  topic.urgency_level === "must_learn"
-                                    ? "bg-red-100 text-red-700"
-                                    : topic.urgency_level === "trending"
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-gray-100 text-gray-600"
-                                )}
-                              >
-                                {topic.urgency_level === "must_learn"
-                                  ? "Must Learn"
+                    {topics.map((topic) => (
+                      <div
+                        key={topic.id}
+                        className="bg-white rounded-xl border border-gray-200 p-5"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <span
+                              className={cn(
+                                "inline-block rounded-full text-xs font-semibold px-2 py-0.5 mb-2",
+                                topic.urgency_level === "must_learn"
+                                  ? "bg-red-100 text-red-700"
                                   : topic.urgency_level === "trending"
-                                  ? "Trending"
-                                  : "Worth Watching"}
-                              </span>
-                              <h3 className="font-semibold text-gray-900">{topic.name}</h3>
-                              <p className="text-sm text-gray-500 mt-1">{topic.description}</p>
-                              <p className="text-xs text-gray-400 mt-2 italic">
-                                Why it matters: {topic.why_it_matters}
-                              </p>
-                            </div>
-
-                            {/* Progress toggle */}
-                            {user ? (
-                              <button
-                                onClick={() => cycleStatus(topic.id)}
-                                className={cn(
-                                  "shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
-                                  STATUS_STYLE[status]
-                                )}
-                              >
-                                {STATUS_LABEL[status]}
-                              </button>
-                            ) : (
-                              <Link
-                                to="/login"
-                                className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-400 hover:text-indigo-500 hover:border-indigo-400"
-                              >
-                                Sign in to track
-                              </Link>
-                            )}
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-gray-100 text-gray-600"
+                              )}
+                            >
+                              {topic.urgency_level === "must_learn"
+                                ? "Must Learn"
+                                : topic.urgency_level === "trending"
+                                ? "Trending"
+                                : "Worth Watching"}
+                            </span>
+                            <h3 className="font-semibold text-gray-900">
+                              {topic.name}
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {topic.description}
+                            </p>
                           </div>
                         </div>
-                      );
-                    })}
+                        <p className="text-xs text-gray-400 mt-3 italic">
+                          Why it matters: {topic.why_it_matters}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
